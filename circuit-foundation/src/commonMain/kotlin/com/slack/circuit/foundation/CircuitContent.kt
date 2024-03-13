@@ -11,7 +11,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -21,6 +20,7 @@ import com.slack.circuit.runtime.CircuitUiState
 import com.slack.circuit.runtime.InternalCircuitApi
 import com.slack.circuit.runtime.Navigator
 import com.slack.circuit.runtime.presenter.Presenter
+import com.slack.circuit.runtime.presenter.toPauseablePresenter
 import com.slack.circuit.runtime.screen.PopResult
 import com.slack.circuit.runtime.screen.Screen
 import com.slack.circuit.runtime.ui.Ui
@@ -88,22 +88,14 @@ public fun CircuitContent(
     circuit.onUnavailableContent,
   key: Any? = screen,
 ) {
-  CircuitContent(
-    screen = screen,
-    navigator = navigator,
-    presenterEnabled = true,
-    modifier = modifier,
-    circuit = circuit,
-    unavailableContent = unavailableContent,
-    key = key,
-  )
+  CircuitContent(screen, navigator, isPaused = false, modifier, circuit, unavailableContent, key)
 }
 
 @Composable
 internal fun CircuitContent(
   screen: Screen,
   navigator: Navigator,
-  presenterEnabled: Boolean,
+  isPaused: Boolean,
   modifier: Modifier = Modifier,
   circuit: Circuit = requireNotNull(LocalCircuit.current),
   unavailableContent: (@Composable (screen: Screen, modifier: Modifier) -> Unit) =
@@ -111,78 +103,49 @@ internal fun CircuitContent(
   key: Any? = screen,
 ) {
   val parent = LocalCircuitContext.current
+
   @OptIn(InternalCircuitApi::class)
   val context =
     remember(screen, navigator, circuit, parent) {
       CircuitContext(parent).also { it.circuit = circuit }
     }
   CompositionLocalProvider(LocalCircuitContext provides context) {
-    CircuitContent(
-      screen = screen,
-      modifier = modifier,
-      navigator = navigator,
-      circuit = circuit,
-      unavailableContent = unavailableContent,
-      context = context,
-      key = key,
-      presenterEnabled = presenterEnabled,
-    )
-  }
-}
+    val eventListener =
+      rememberEventListener(screen, context, factory = circuit.eventListenerFactory)
+    DisposableEffect(eventListener, screen, context) { onDispose { eventListener.dispose() } }
 
-@Composable
-private fun CircuitContent(
-  screen: Screen,
-  modifier: Modifier,
-  navigator: Navigator,
-  circuit: Circuit,
-  unavailableContent: (@Composable (screen: Screen, modifier: Modifier) -> Unit),
-  context: CircuitContext,
-  key: Any? = screen,
-  presenterEnabled: Boolean,
-) {
-  val eventListener = rememberEventListener(screen, context, factory = circuit.eventListenerFactory)
-  DisposableEffect(eventListener, screen, context) { onDispose { eventListener.dispose() } }
+    val presenter = rememberPresenter(screen, navigator, context, eventListener, circuit::presenter)
 
-  val presenter = rememberPresenter(screen, navigator, context, eventListener, circuit::presenter)
+    val ui = rememberUi(screen, context, eventListener, circuit::ui)
 
-  val ui = rememberUi(screen, context, eventListener, circuit::ui)
-
-  if (ui != null && presenter != null) {
-    CircuitContent(screen, modifier, presenter, presenterEnabled, ui, eventListener, key)
-  } else {
-    eventListener.onUnavailableContent(screen, presenter, ui, context)
-    unavailableContent(screen, modifier)
+    if (ui != null && presenter != null) {
+      CircuitContent(screen, presenter, isPaused, ui, modifier, eventListener, key)
+    } else {
+      eventListener.onUnavailableContent(screen, presenter, ui, context)
+      unavailableContent(screen, modifier)
+    }
   }
 }
 
 @Composable
 public fun <UiState : CircuitUiState> CircuitContent(
   screen: Screen,
-  modifier: Modifier,
   presenter: Presenter<UiState>,
   ui: Ui<UiState>,
+  modifier: Modifier = Modifier,
   eventListener: EventListener = EventListener.NONE,
   key: Any? = screen,
 ) {
-  CircuitContent(
-    screen = screen,
-    modifier = modifier,
-    presenter = presenter,
-    presenterEnabled = true,
-    ui = ui,
-    eventListener = eventListener,
-    key = key,
-  )
+  CircuitContent(screen, presenter, isPaused = false, ui, modifier, eventListener, key)
 }
 
 @Composable
 internal fun <UiState : CircuitUiState> CircuitContent(
   screen: Screen,
-  modifier: Modifier,
   presenter: Presenter<UiState>,
-  presenterEnabled: Boolean,
+  isPaused: Boolean,
   ui: Ui<UiState>,
+  modifier: Modifier = Modifier,
   eventListener: EventListener = EventListener.NONE,
   key: Any? = screen,
 ) {
@@ -197,37 +160,25 @@ internal fun <UiState : CircuitUiState> CircuitContent(
       onDispose { eventListener.onDisposePresent() }
     }
 
-    var lastState by remember { mutableStateOf<UiState?>(null) }
-    val state =
-      if (presenterEnabled) {
-        presenter.present()
-      } else {
-        lastState
-      }
+    val pauseablePresenter = remember(presenter) { presenter.toPauseablePresenter(isPaused) }
 
-    SideEffect { lastState = state }
+    SideEffect { pauseablePresenter.isPaused = isPaused }
+
+    val state = pauseablePresenter.present()
 
     // TODO not sure why stateFlow + LaunchedEffect + distinctUntilChanged doesn't work here
-    SideEffect {
-      if (state != null) {
-        eventListener.onState(state)
-      }
-    }
+    SideEffect { eventListener.onState(state) }
     DisposableEffect(screen) {
       eventListener.onStartContent()
       onDispose { eventListener.onDisposeContent() }
     }
-    if (state != null) {
-      Box {
-        ui.Content(state, modifier)
+    Box {
+      ui.Content(state, modifier)
 
-        if (!presenterEnabled) {
-          // Just for debugging. Easier to see if presenters are enabled or not
-          Spacer(Modifier.matchParentSize().background(Color.Magenta.copy(alpha = 0.25f)))
-        }
+      if (pauseablePresenter.isPaused) {
+        // Just for debugging. Easier to see if presenters are enabled or not
+        Spacer(Modifier.matchParentSize().background(Color.Magenta.copy(alpha = 0.25f)))
       }
-    } else {
-      // TODO: What to do?
     }
   }
 }

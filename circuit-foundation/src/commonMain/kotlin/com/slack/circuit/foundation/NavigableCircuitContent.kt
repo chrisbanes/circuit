@@ -130,8 +130,8 @@ public fun <R : Record> NavigableCircuitContent(
         ) {
           provider.content(
             record,
-            // presenterEnabled. We only enable the presenter for the top record
-            backStack.topRecord == record,
+            // isPaused. We pause the presenter if it is not the top record
+            backStack.topRecord != record,
           )
         }
       }
@@ -187,15 +187,14 @@ private fun <R : Record> BackStack<R>.buildCircuitContentProviders(
         RecordContentProvider(
           record = record,
           content =
-            movableContentOf { record, presenterEnabled ->
+            movableContentOf { record, isPaused ->
               CircuitContent(
                 screen = record.screen,
-                modifier = Modifier,
                 navigator = lastNavigator,
                 circuit = lastCircuit,
                 unavailableContent = lastUnavailableRoute,
                 key = record.key,
-                presenterEnabled = presenterEnabled,
+                isPaused = isPaused,
               )
             },
         )
