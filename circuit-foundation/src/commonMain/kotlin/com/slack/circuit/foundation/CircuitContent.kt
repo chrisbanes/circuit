@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 package com.slack.circuit.foundation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -12,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.slack.circuit.runtime.CircuitContext
 import com.slack.circuit.runtime.CircuitUiState
 import com.slack.circuit.runtime.InternalCircuitApi
@@ -113,7 +117,16 @@ internal fun CircuitContent(
       CircuitContext(parent).also { it.circuit = circuit }
     }
   CompositionLocalProvider(LocalCircuitContext provides context) {
-    CircuitContent(screen, modifier, navigator, circuit, unavailableContent, context, key, presenterEnabled)
+    CircuitContent(
+      screen = screen,
+      modifier = modifier,
+      navigator = navigator,
+      circuit = circuit,
+      unavailableContent = unavailableContent,
+      context = context,
+      key = key,
+      presenterEnabled = presenterEnabled,
+    )
   }
 }
 
@@ -126,7 +139,7 @@ private fun CircuitContent(
   unavailableContent: (@Composable (screen: Screen, modifier: Modifier) -> Unit),
   context: CircuitContext,
   key: Any? = screen,
-  presenterEnabled: Boolean = true,
+  presenterEnabled: Boolean,
 ) {
   val eventListener = rememberEventListener(screen, context, factory = circuit.eventListenerFactory)
   DisposableEffect(eventListener, screen, context) { onDispose { eventListener.dispose() } }
@@ -185,24 +198,34 @@ internal fun <UiState : CircuitUiState> CircuitContent(
     }
 
     var lastState by remember { mutableStateOf<UiState?>(null) }
-    val state = if (presenterEnabled) {
-      presenter.present()
-    } else {
-      lastState
-    }
+    val state =
+      if (presenterEnabled) {
+        presenter.present()
+      } else {
+        lastState
+      }
 
     SideEffect { lastState = state }
 
     // TODO not sure why stateFlow + LaunchedEffect + distinctUntilChanged doesn't work here
-    if (state != null) {
-      SideEffect { eventListener.onState(state) }
+    SideEffect {
+      if (state != null) {
+        eventListener.onState(state)
+      }
     }
     DisposableEffect(screen) {
       eventListener.onStartContent()
       onDispose { eventListener.onDisposeContent() }
     }
     if (state != null) {
-      ui.Content(state, modifier)
+      Box {
+        ui.Content(state, modifier)
+
+        if (!presenterEnabled) {
+          // Just for debugging. Easier to see if presenters are enabled or not
+          Spacer(Modifier.matchParentSize().background(Color.Magenta.copy(alpha = 0.25f)))
+        }
+      }
     } else {
       // TODO: What to do?
     }
