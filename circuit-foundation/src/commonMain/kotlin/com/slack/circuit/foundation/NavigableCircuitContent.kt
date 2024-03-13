@@ -128,7 +128,11 @@ public fun <R : Record> NavigableCircuitContent(
           LocalBackStack provides backStack,
           *providedLocals,
         ) {
-          provider.content(record, backStack)
+          provider.content(
+            record,
+            // presenterEnabled. We only enable the presenter for the top record
+            backStack.topRecord == record,
+          )
         }
       }
     }
@@ -139,7 +143,7 @@ public fun <R : Record> NavigableCircuitContent(
 @Immutable
 public class RecordContentProvider<R : Record>(
   public val record: R,
-  internal val content: @Composable (R, BackStack<R>) -> Unit,
+  internal val content: @Composable (R, Boolean) -> Unit,
 ) {
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
@@ -183,7 +187,7 @@ private fun <R : Record> BackStack<R>.buildCircuitContentProviders(
         RecordContentProvider(
           record = record,
           content =
-            movableContentOf { record, backStack ->
+            movableContentOf { record, presenterEnabled ->
               CircuitContent(
                 screen = record.screen,
                 modifier = Modifier,
@@ -191,7 +195,7 @@ private fun <R : Record> BackStack<R>.buildCircuitContentProviders(
                 circuit = lastCircuit,
                 unavailableContent = lastUnavailableRoute,
                 key = record.key,
-                presenterEnabled = backStack.topRecord == record,
+                presenterEnabled = presenterEnabled,
               )
             },
         )
