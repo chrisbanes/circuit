@@ -73,12 +73,12 @@ public object SaveableStateRegistryBackStackRecordLocalProvider :
   }
 }
 
-private class BackStackRecordLocalSaveableStateRegistry(
+public class BackStackRecordLocalSaveableStateRegistry(
   // Note: restored is snapshot-backed because consumeRestored runs in composition
   // and must be rolled back if composition does not commit
   private val restored: SnapshotStateMap<String, List<Any?>>
 ) : SaveableStateRegistry {
-  var parentRegistry: SaveableStateRegistry? by mutableStateOf(null)
+  internal var parentRegistry: SaveableStateRegistry? by mutableStateOf(null)
 
   private val valueProviders = mutableMapOf<String, MutableList<() -> Any?>>()
 
@@ -122,7 +122,7 @@ private class BackStackRecordLocalSaveableStateRegistry(
     }
   }
 
-  fun saveForContentLeavingComposition() {
+  public fun saveForContentLeavingComposition() {
     saveInto(restored)
   }
 
@@ -142,9 +142,8 @@ private class BackStackRecordLocalSaveableStateRegistry(
     }
   }
 
-  companion object {
-    val Saver =
-      mapSaver(
+  public companion object {
+    public val Saver: Saver<BackStackRecordLocalSaveableStateRegistry, Any> = mapSaver(
         save = { value -> value.performSave() },
         restore = { value ->
           BackStackRecordLocalSaveableStateRegistry(
