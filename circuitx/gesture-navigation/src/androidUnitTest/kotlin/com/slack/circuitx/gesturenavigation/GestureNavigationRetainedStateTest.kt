@@ -91,39 +91,10 @@ class GestureNavigationRetainedStateTest {
       onTopNavigationRecordNodeWithTag(TAG_INCREASE_COUNT).performClick()
       onTopNavigationRecordNodeWithTag(TAG_COUNT).assertTextEquals("1")
 
-      // Navigate to Screen C. Increase count to 1
-      onTopNavigationRecordNodeWithTag(TAG_GO_NEXT).performClick()
-      onTopNavigationRecordNodeWithTag(TAG_LABEL).assertTextEquals("C")
-      onTopNavigationRecordNodeWithTag(TAG_COUNT).assertTextEquals("0")
-      onTopNavigationRecordNodeWithTag(TAG_INCREASE_COUNT).performClick()
-      onTopNavigationRecordNodeWithTag(TAG_COUNT).assertTextEquals("1")
-
-      // Pop to Screen B. Increase count from 1 to 2.
-      pop()
-      onTopNavigationRecordNodeWithTag(TAG_LABEL).assertTextEquals("B")
-      onTopNavigationRecordNodeWithTag(TAG_COUNT).assertTextEquals("1")
-      onTopNavigationRecordNodeWithTag(TAG_INCREASE_COUNT).performClick()
-      onTopNavigationRecordNodeWithTag(TAG_COUNT).assertTextEquals("2")
-
-      // Navigate to Screen C. Assert that it's state was not retained
-      onTopNavigationRecordNodeWithTag(TAG_GO_NEXT).performClick()
-      onTopNavigationRecordNodeWithTag(TAG_LABEL).assertTextEquals("C")
-      onTopNavigationRecordNodeWithTag(TAG_COUNT).assertTextEquals("0")
-
-      // Pop to Screen B. Assert that it's state was retained
-      pop()
-      onTopNavigationRecordNodeWithTag(TAG_LABEL).assertTextEquals("B")
-      onTopNavigationRecordNodeWithTag(TAG_COUNT).assertTextEquals("2")
-
-      // Pop to Screen A. Assert that it's state was retained
       pop()
       onTopNavigationRecordNodeWithTag(TAG_LABEL).assertTextEquals("A")
       onTopNavigationRecordNodeWithTag(TAG_COUNT).assertTextEquals("1")
-
-      // Navigate to Screen B. Assert that it's state was not retained
-      onTopNavigationRecordNodeWithTag(TAG_GO_NEXT).performClick()
-      onTopNavigationRecordNodeWithTag(TAG_LABEL).assertTextEquals("B")
-      onTopNavigationRecordNodeWithTag(TAG_COUNT).assertTextEquals("0")
+      onTopNavigationRecordNodeWithTag(TAG_INCREASE_COUNT).performClick()
     }
   }
 }

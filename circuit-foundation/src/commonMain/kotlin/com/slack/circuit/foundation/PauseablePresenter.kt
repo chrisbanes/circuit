@@ -22,12 +22,19 @@ import com.slack.circuit.runtime.presenter.Presenter
 public abstract class PauseablePresenter<UiState : CircuitUiState>(isPaused: Boolean = false) :
     Presenter<UiState> {
 
-    public var isPaused: Boolean by mutableStateOf(isPaused)
+    public var isPaused: Boolean
+        get() = _isPaused
+        set(value) {
+            println("[RR] Presenter setting isPaused: $value. $lastState")
+            _isPaused = value
+        }
+
+    public var _isPaused: Boolean by mutableStateOf(isPaused)
+
+    private var lastState by mutableStateOf<UiState?>(null)
 
     @Composable
     override fun present(): UiState {
-        var lastState by remember { mutableStateOf<UiState?>(null) }
-
         if (!isPaused || lastState == null) {
             CompositionLocalProvider(LocalCanRetainChecker provides CanRetainChecker { !isPaused }) {
                 val innerRetainedStateRegistry = rememberRetained { RetainedStateRegistry() }

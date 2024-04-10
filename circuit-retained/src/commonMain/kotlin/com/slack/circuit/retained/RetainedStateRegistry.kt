@@ -91,6 +91,8 @@ internal class RetainedStateRegistryImpl(retained: MutableMap<String, List<Any?>
       list[0]
     } else {
       null
+    }.also {
+      println("[RR] RetainedStateRegistry. Consume value: $key. ${it}")
     }
   }
 
@@ -99,8 +101,10 @@ internal class RetainedStateRegistryImpl(retained: MutableMap<String, List<Any?>
     valueProviders.getOrPut(key) { mutableListOf() }.add(valueProvider)
     return object : Entry {
       override fun unregister() {
+        println("[RR] RetainedStateRegistry. Removing value: $key. ${valueProvider.invoke()}")
         val list = valueProviders.remove(key)
         list?.remove(valueProvider)
+
         if (!list.isNullOrEmpty()) {
           // if there are other providers for this key return list back to the map
           valueProviders[key] = list
@@ -110,6 +114,7 @@ internal class RetainedStateRegistryImpl(retained: MutableMap<String, List<Any?>
   }
 
   override fun saveAll() {
+    println("[RR] RetainedStateRegistry. saveAll. $this")
     val values =
       valueProviders.mapValues { (_, list) ->
         // If we have multiple providers we should store null values as well to preserve
@@ -129,6 +134,7 @@ internal class RetainedStateRegistryImpl(retained: MutableMap<String, List<Any?>
   }
 
   override fun saveValue(key: String) {
+    println("[RR] RetainedStateRegistry. saveValue[$key] $this")
     val providers = valueProviders[key]
     if (providers != null) {
       retained[key] = providers.map { it.invoke() }
